@@ -11,7 +11,7 @@
 在你的项目根目录执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/nautilus/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh | bash
 ```
 
 安装完成后，在当前目录打开 Claude Code：
@@ -24,7 +24,7 @@ claude
 
 ```bash
 PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese \
-  bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/nautilus/main/scripts/install.sh)
+  bash <(curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh)
 ```
 
 支持的环境变量：
@@ -71,7 +71,7 @@ your-project/
 
 ```bash
 PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese \
-  bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/nautilus/main/scripts/install.sh)
+  bash <(curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh)
 ```
 
 ## .gitignore 规则
@@ -94,7 +94,7 @@ _bmad-output/sprint-*/
 ## 本地安装
 
 ```bash
-git clone https://github.com/YOUR_ORG/nautilus
+git clone https://github.com/ChenglinZhang777/nautilus
 cd your-project
 PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese \
   bash /path/to/nautilus/scripts/install.sh

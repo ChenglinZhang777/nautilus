@@ -2,14 +2,14 @@
 # install.sh — 将 Nautilus 框架安装到目标项目
 # 用法：
 #   在目标项目根目录执行：
-#   curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/nautilus/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh | bash
 #   或本地执行：
 #   bash /path/to/nautilus/scripts/install.sh
 
 set -euo pipefail
 
 BMAD_VERSION="6.0.3"
-REPO_URL="https://github.com/YOUR_ORG/nautilus"
+REPO_URL="https://github.com/ChenglinZhang777/nautilus"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK_DIR="$(dirname "$SCRIPT_DIR")"
 
