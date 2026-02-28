@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# install.sh — 将 BMAD AgentTeam 框架安装到目标项目
+# install.sh — 将 Nautilus 框架安装到目标项目
 # 用法：
 #   在目标项目根目录执行：
-#   curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/bmad-framework/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/nautilus/main/scripts/install.sh | bash
 #   或本地执行：
-#   bash /path/to/bmad-framework/scripts/install.sh
+#   bash /path/to/nautilus/scripts/install.sh
 
 set -euo pipefail
 
 BMAD_VERSION="6.0.3"
-REPO_URL="https://github.com/YOUR_ORG/bmad-framework"
+REPO_URL="https://github.com/YOUR_ORG/nautilus"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -42,9 +42,9 @@ resolve_framework_source() {
     info "从 GitHub 拉取框架 v${BMAD_VERSION}..."
     TMP_DIR=$(mktemp -d)
     trap 'rm -rf "$TMP_DIR"' EXIT
-    git clone --depth=1 "$REPO_URL" "$TMP_DIR/bmad-framework" 2>/dev/null \
+    git clone --depth=1 "$REPO_URL" "$TMP_DIR/nautilus" 2>/dev/null \
       || { error "拉取失败，请检查网络或 REPO_URL 配置"; exit 1; }
-    SOURCE_DIR="$TMP_DIR/bmad-framework"
+    SOURCE_DIR="$TMP_DIR/nautilus"
   fi
 }
 
@@ -73,7 +73,7 @@ collect_config() {
 
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  BMAD AgentTeam 框架安装 v${BMAD_VERSION}${NC}"
+    echo -e "${BLUE}  Nautilus 安装 v${BMAD_VERSION}${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
@@ -168,7 +168,7 @@ update_gitignore() {
   }
 
   # evolution log 是运行时数据，不纳入版本
-  append_if_missing "# BMAD runtime data"
+  append_if_missing "# Nautilus runtime data"
   append_if_missing "_bmad/_memory/"
   # Sprint 产物按需决定是否 commit（默认忽略）
   append_if_missing "_bmad-output/"
@@ -180,18 +180,18 @@ update_gitignore() {
 print_success() {
   echo ""
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${GREEN}  BMAD AgentTeam 安装完成！${NC}"
+  echo -e "${GREEN}  Nautilus 安装完成！${NC}"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
   echo "  已安装到：$(pwd)"
   echo ""
   echo "  下一步："
   echo "    1. 在当前目录打开 Claude Code：claude"
-  echo "    2. 描述你的需求，BMAD 会自动判断模式并启动团队"
+  echo "    2. 描述你的需求，Nautilus 会自动判断模式并启动团队"
   echo "    3. Solo Mode / Sprint Mode 文档见 CLAUDE.md"
   echo ""
   echo "  框架文件："
-  echo "    _bmad/          ← BMAD 框架（不要手动修改）"
+  echo "    _bmad/          ← Nautilus 框架（不要手动修改）"
   echo "    CLAUDE.md       ← Claude Code 操作规则"
   echo "    docs/           ← 项目知识库（可随时添加文档）"
   echo ""
