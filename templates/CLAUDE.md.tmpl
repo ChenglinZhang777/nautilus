@@ -1,0 +1,287 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
+## 操作规则（接到任何任务必须先执行）
+
+### 步骤 1：读进化经验
+
+检查 `_bmad/_memory/evolution-log-R*.md`，若存在则读最新一份：
+- `next_round_suggestions` → 带入本次工作的约束前提
+- `tension_points[status=UNRESOLVED, ttl_remaining=0]` → 本次必须先决策，再启动团队
+
+### 步骤 2：判断模式
+
+| 条件 | 模式 |
+|------|------|
+| 纯对话、解释、查询 | 直接回答，结束 |
+| 改动 < 半天，边界清晰 | Solo Mode |
+| 1-3 个 Feature / Story | Sprint Mode |
+| 3+ 个并行 Feature | Parallel Sprint Mode |
+
+### 步骤 3：按模式启动
+
+**Solo Mode** — 不需要 TeamCreate，直接在当前会话执行：
+- 有 spec 需求 → 参考 `_bmad/bmm/workflows/bmad-quick-flow/` 执行 quick-spec → quick-dev
+- 直接实现 → 遵循 BMAD dev-story 规范，#yolo 模式
+
+**Sprint Mode**：
+
+```
+TeamCreate("sprint-{N}-team")
+
+# 规划协商：先串行启动 sm
+Task(name="sm", subagent_type="general-purpose", team_name="sprint-{N}-team",
+     prompt=[类型A模板，workflow=sprint-planning+create-story])
+# sm 汇报完成后，同一消息并发：
+Task(name="pm",       run_in_background=True, team_name="sprint-{N}-team", ...)
+Task(name="architect",run_in_background=True, team_name="sprint-{N}-team", ...)
+Task(name="analyst",  run_in_background=True, team_name="sprint-{N}-team", ...)
+# 收到所有汇报 → 综合写 consensus-R{N}.md
+
+# 并行实现：按 Story 依赖分批，每批同一消息并发
+Task(name="dev-frontend-1", team_name="sprint-{N}-team", ...)  # Story FE-X
+Task(name="dev-backend-1",  team_name="sprint-{N}-team", ...)  # Story BE-X
+Task(name="dev-devops",     team_name="sprint-{N}-team", ...)  # 基础设施
+
+# 并行审查：所有实现完成后，同一消息并发
+Task(name="qa-security", run_in_background=True, team_name="sprint-{N}-team", ...)
+Task(name="qa-e2e",      run_in_background=True, team_name="sprint-{N}-team", ...)
+Task(name="qa-perf",     run_in_background=True, team_name="sprint-{N}-team", ...)
+# CRITICAL 问题 → 路由回对应 dev agent 修复
+
+# 进化蒸馏
+Task(name="tech-writer", team_name="sprint-{N}-team", ...)
+# → 写 _bmad/_memory/evolution-log-R{N}.md
+
+TeamDelete("sprint-{N}-team")
+```
+
+**Parallel Sprint Mode** — 实现阶段扩展为多 Feature 并行，其余与 Sprint Mode 相同：
+
+```
+Task(name="dev-frontend-1", ...)  Task(name="dev-backend-1",  ...)  # Feature A
+Task(name="dev-frontend-2", ...)  Task(name="dev-backend-2",  ...)  # Feature B
+Task(name="dev-frontend-3", ...)  Task(name="dev-backend-3",  ...)  # Feature C
+```
+
+---
+
+## Teammate Prompt 规范
+
+**类型 A — 规划类（pm / architect / analyst / ux / sm）**
+
+```
+1. 读取并完整内化 _bmad/bmm/agents/{role}.md 的 persona，你就是这个角色
+2. 读取 _bmad/bmm/config.yaml，加载项目配置
+3. 读取最新 evolution-log（如存在），将 next_round_suggestions 作为约束
+4. 执行任务：{具体描述}
+   引擎：_bmad/core/tasks/workflow.xml
+   配置：_bmad/bmm/workflows/{对应路径}（见下方 Workflow 路径表）
+5. Team 模式适配：BMAD 中所有 "STOP and WAIT for user input"
+   → 改为 SendMessage(type="message", recipient="orchestrator", content="[问题/阶段产出]")
+   → 等 orchestrator 回复后继续
+6. 完成：SendMessage(type="message", recipient="orchestrator",
+         content="完成。摘要：[3句] 张力点：[如有，注明 RESOLVED/UNRESOLVED]")
+输出：_bmad-output/sprint-{N}/negotiation/{role}-perspective.md
+     （sm 额外输出 Story 文件至 _bmad-output/implementation-artifacts/{story-key}.md）
+```
+
+**类型 B — 实现类（dev-frontend-N / dev-backend-N / dev-devops）**
+
+```
+1. 读取并完整内化 _bmad/bmm/agents/dev.md 的 Amelia persona
+2. 读取 _bmad/bmm/config.yaml
+3. 专化约束（按实例注入其一）：
+   · dev-frontend-N：只处理 React/TS/UI，不修改后端代码
+   · dev-backend-N ：只处理 API/DB/Service，不修改前端代码
+   · dev-devops    ：只处理 CI/CD/部署/监控，不修改业务代码
+4. 读取 Story 文件：_bmad-output/implementation-artifacts/{story-key}.md — 这是唯一权威实现指南
+5. 执行 dev-story workflow，#yolo 模式（无需任何中途确认）
+   _bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml
+6. 完成：SendMessage(type="message", recipient="orchestrator",
+         content="Story[ID]完成。测试：全部通过。变更文件：[列表]。注意：[偏差或阻塞]")
+```
+
+**类型 C — 审查类（qa-security / qa-perf / qa-e2e / qa-coverage）**
+
+```
+1. 读取并完整内化 _bmad/bmm/agents/qa.md 的 Quinn persona
+2. 读取 _bmad/bmm/config.yaml
+3. 专化约束（按实例注入其一）：
+   · qa-security ：OWASP Top10，权限漏洞，敏感数据暴露
+   · qa-perf     ：热路径，N+1 查询，内存泄漏
+   · qa-e2e      ：关键用户流程 E2E 自动化
+   · qa-coverage ：单元测试覆盖率补全
+4. 扫描：项目根目录业务代码（排除 node_modules/、dist/、_bmad-output/）
+5. 执行 #yolo 模式（workflow 路径见下方 Workflow 路径表）
+6. 输出：_bmad-output/sprint-{N}/quality/{维度}-report.md（CRITICAL/HIGH/MEDIUM 分级）
+7. 完成：SendMessage(type="message", recipient="orchestrator",
+         content="[维度]审查完成。CRITICAL:{N} HIGH:{M}。报告：{路径}")
+```
+
+---
+
+## 例外处理规则
+
+**Agent 被阻塞时：**
+收到含 BLOCKED 的消息 → `SendMessage(recipient=依赖方, content=具体问题)`
+→ 收到答复 → `SendMessage(recipient=发起方, content=答案)`
+→ `TaskUpdate(taskId=被阻塞任务, status="in_progress")`
+
+**协商出现重大分歧时：**
+将分歧点写入 `_bmad-output/sprint-{N}/negotiation/conflict-summary.md`
+→ `Task(name="party-facilitator")` 读取 party-mode workflow + agent-manifest.csv + conflict-summary.md
+→ #yolo 模式产出 consensus-R{N}.md
+
+---
+
+## 进化规则
+
+- 每轮 Sprint 结束前，tech-writer 必须写 evolution-log
+- 读取相邻两轮 evolution-log：`next_round_suggestions` 重叠 > 50% → 停滞告警
+  → 停滞时：强制对所有 UNRESOLVED 张力点做决策，再启动下一团队
+- `tension_points.ttl_remaining` 每轮递减 1，归零时下轮开始前必须决策
+
+---
+
+## 项目背景
+
+**{{PROJECT_NAME}}**：基于 BMAD v6.0.3 的 AI Agent 协作开发项目。
+协调层：Claude Code `TeamCreate` / `Task` / `SendMessage` / `TaskCreate` / `TaskUpdate`
+内容层：BMAD `_bmad/bmm/agents/*.md`（persona）+ `workflows/`（执行指令）
+
+---
+
+## BMAD 目录结构
+
+```
+_bmad/
+├── core/config.yaml              # 全局配置（user_name, communication_language）
+├── core/tasks/workflow.xml       # 所有 workflow 的执行引擎（每个 teammate 必须先加载）
+├── core/workflows/               # party-mode, brainstorming, advanced-elicitation
+├── bmm/config.yaml               # 框架默认配置（output_folder 等）
+├── bmm/agents/                   # 所有 BMAD agent persona 文件
+├── bmm/workflows/                # 按阶段组织的工作流
+├── _config/agent-manifest.csv    # 所有 agent 元数据（party-facilitator 需要加载）
+└── _memory/                      # 演进日志（跨 Sprint 积累，不纳入 git）
+    └── evolution-log-R{N}.md
+
+_bmad-output/                     ← Sprint 产物（建议加入 .gitignore）
+├── planning-artifacts/           # [bmad 原生] 规划文档
+│   ├── prd.md
+│   ├── architecture.md
+│   └── epics.md
+├── implementation-artifacts/     # [bmad 原生] Story 文件 + Sprint 状态追踪
+│   ├── sprint-status.yaml
+│   └── {story-key}.md
+└── sprint-{N}/                   # 过程产物（协商、审查）
+    ├── negotiation/              # 规划协商产出（每个 agent 写独立文件，防并发冲突）
+    └── quality/                  # 审查报告（每个维度写独立文件）
+
+docs/               # 项目知识库（project_knowledge 引用路径）
+```
+
+---
+
+## Agent Persona 文件
+
+| Teammate 名称 | Persona 文件 | BMAD 角色 |
+|--------------|-------------|----------|
+| `sm` | `_bmad/bmm/agents/sm.md` | Bob — Scrum Master |
+| `pm` | `_bmad/bmm/agents/pm.md` | John — Product Manager |
+| `architect` | `_bmad/bmm/agents/architect.md` | Winston — Architect |
+| `analyst` | `_bmad/bmm/agents/analyst.md` | Mary — Business Analyst |
+| `ux` | `_bmad/bmm/agents/ux-designer.md` | Sally — UX Designer |
+| `dev-frontend-N` | `_bmad/bmm/agents/dev.md` + 前端专化约束 | Amelia — Developer |
+| `dev-backend-N` | `_bmad/bmm/agents/dev.md` + 后端专化约束 | Amelia — Developer |
+| `dev-devops` | `_bmad/bmm/agents/dev.md` + 运维专化约束 | Amelia — Developer |
+| `qa-security` | `_bmad/bmm/agents/qa.md` + 安全专化 | Quinn — QA Engineer |
+| `qa-perf` | `_bmad/bmm/agents/qa.md` + 性能专化 | Quinn — QA Engineer |
+| `qa-e2e` | `_bmad/bmm/agents/qa.md` + E2E 专化 | Quinn — QA Engineer |
+| `qa-coverage` | `_bmad/bmm/agents/qa.md` + 覆盖率专化 | Quinn — QA Engineer |
+| `tech-writer` | `_bmad/bmm/agents/tech-writer/tech-writer.md` | Paige — Tech Writer |
+| `party-facilitator` | 加载 `_bmad/_config/agent-manifest.csv` 所有 persona | 多角色模拟 |
+
+---
+
+## Workflow 路径
+
+### 类型 A（规划类）
+
+| Teammate | Workflow 路径 |
+|----------|-------------|
+| `sm` | `_bmad/bmm/workflows/4-implementation/sprint-planning/workflow.yaml` |
+| `sm`（创建 Story）| `_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml` |
+| `pm` | `_bmad/bmm/workflows/2-plan-workflows/create-prd/workflow-create-prd.md` |
+| `architect` | `_bmad/bmm/workflows/3-solutioning/create-architecture/workflow.md` |
+| `analyst`（市场）| `_bmad/bmm/workflows/1-analysis/research/workflow-market-research.md` |
+| `analyst`（技术）| `_bmad/bmm/workflows/1-analysis/research/workflow-technical-research.md` |
+| `ux` | `_bmad/bmm/workflows/2-plan-workflows/create-ux-design/workflow.md` |
+| `party-facilitator` | `_bmad/core/workflows/party-mode/workflow.md` |
+| `tech-writer`（蒸馏）| `_bmad/bmm/workflows/4-implementation/retrospective/workflow.yaml` |
+
+### 类型 B（实现类）
+
+| Teammate | Workflow 路径 |
+|----------|-------------|
+| `dev-*` | `_bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml` |
+
+### 类型 C（审查类）
+
+| Teammate | Workflow 路径 |
+|----------|-------------|
+| `qa-security` / `qa-perf` / `qa-coverage` | `_bmad/bmm/workflows/4-implementation/code-review/workflow.yaml` |
+| `qa-e2e` | `_bmad/bmm/workflows/qa-generate-e2e-tests/workflow.yaml` |
+
+---
+
+## Evolution Log 格式
+
+`_bmad/_memory/evolution-log-R{N}.md`
+
+```yaml
+round: N
+team_config: sprint-mode   # solo / sprint / parallel-sprint
+teammate_count: 8
+
+completed_stories:
+  - { id: FE-1, status: done }
+
+blocking_log:
+  - from: dev-frontend-1
+    waiting_on: dev-backend-1
+    issue: "/api/login error response schema 未定义"
+    wait_time: 2h
+    root_cause: "API 契约未在规划阶段锁定"
+
+tension_points:
+  - id: T-1
+    description: "状态管理方案：Zustand vs Jotai"
+    status: UNRESOLVED
+    ttl_remaining: 1
+
+next_round_suggestions:
+  - "规划阶段增加 architect-frontend，提前锁定前端技术决策"
+  - "Story 依赖调整：BE-1 应早于 FE-1 启动"
+
+next_team_config: sprint-mode
+```
+
+---
+
+## 可用的 Slash 命令
+
+| 命令 | 用途 |
+|------|------|
+| `/bmad-party-mode` | 手动启动多 agent 协商 |
+| `/bmad-bmm-sprint-planning` | Sprint 规划 |
+| `/bmad-bmm-create-story` | 创建 Story 文件 |
+| `/bmad-bmm-dev-story` | 执行 Story 实现 |
+| `/bmad-bmm-code-review` | 代码审查 |
+| `/bmad-bmm-retrospective` | Sprint 回顾 |
+| `/bmad-bmm-quick-spec` | Solo 快速规格 |
+| `/bmad-bmm-quick-dev` | Solo 快速实现 |
+| `/bmad-help` | 不知道下一步时 |

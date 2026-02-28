@@ -1,0 +1,2 @@
+# Evolution Logs
+_memory/ 目录由运行时写入，不纳入框架版本。
