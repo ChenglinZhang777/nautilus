@@ -116,7 +116,12 @@ install_framework() {
   rm -rf "$target_dir/_bmad/_memory"
   mkdir -p "$target_dir/_bmad/_memory"
 
-  # 2. 写入 config.yaml（填充用户配置）
+  # 2. 复制 .claude/commands/（slash commands）
+  info "安装 Slash Commands..."
+  mkdir -p "$target_dir/.claude/commands"
+  cp "$SOURCE_DIR/.claude/commands/"*.md "$target_dir/.claude/commands/"
+
+  # 3. 写入 config.yaml（填充用户配置）
   info "生成配置文件..."
   fill_template "$SOURCE_DIR/templates/core-config.yaml.tmpl" \
                 "$target_dir/_bmad/core/config.yaml"
