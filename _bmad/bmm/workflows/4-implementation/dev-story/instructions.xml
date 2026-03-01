@@ -148,7 +148,7 @@
     <check if="required_skills section exists">
       <action>For each declared skill, verify availability:
         - source=project → check .claude/skills/{skill-name}.md exists
-        - source=clawhub/custom → check if skill is installed or accessible
+        - source=community/custom → check .claude/skills/{skill-name}.md exists or is accessible
       </action>
       <action if="any required skill is missing">
         <output>⚠️ 缺失 Skill：{{missing_skills}}

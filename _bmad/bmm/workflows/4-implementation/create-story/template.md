@@ -38,7 +38,7 @@ so that {{benefit}}.
 <!-- 声明本 Story 实现所需的 Skill，Dev Agent 会在实现前自动检查可用性 -->
 <!-- required_skills:
   - name: skill-name
-    source: project | clawhub | custom
+    source: project | community | custom
     purpose: 简要说明用途
 -->
 

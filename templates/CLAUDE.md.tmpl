@@ -171,8 +171,18 @@ Task(name="qa-perf",     run_in_background=True, team_name="sprint-{N}-team", ..
 # ── 阶段 5：进化蒸馏 ──
 # 写 checkpoint.yaml: phases.evolution.status = in-progress
 
-Task(name="tech-writer", team_name="sprint-{N}-team", ...)
-# → 写 _bmad/_memory/evolution-log-R{N}.md
+# 步骤 5a：Orchestrator 自动扫描（无需启动 teammate）
+Skill("evolution-analyzer", args="sprint-{N}")
+# → 输出草稿至 _bmad-output/sprint-{N}/evolution-draft.md
+# → 在控制台打印统计摘要（Stories/阻塞/QA/张力点/建议数量）
+
+# 步骤 5b：tech-writer 审查草稿并定稿
+Task(name="tech-writer", team_name="sprint-{N}-team",
+     prompt="类型A，workflow=retrospective，
+             额外输入：审查并修正 _bmad-output/sprint-{N}/evolution-draft.md，
+             填写所有 root_cause 字段，确认张力点描述准确，
+             筛选最重要的 2-3 条 next_round_suggestions，
+             最终写入 _bmad/_memory/evolution-log-R{N}.md")
 # 完成后：
 # 写 checkpoint.yaml: phases.evolution.status = done, output = evolution-log 路径
 
@@ -354,8 +364,8 @@ phases:
 
 ## 进化规则
 
-- 每轮 Sprint 结束前，tech-writer 必须写 evolution-log
-- 读取相邻两轮 evolution-log：`next_round_suggestions` 重叠 > 50% → 停滞告警
+- 每轮 Sprint 结束：先运行 `/evolution-analyzer sprint-{N}` 自动收集数据，再由 tech-writer 审查定稿
+- 停滞检测由 evolution-analyzer 自动执行：`next_round_suggestions` 重叠 > 50% → 输出 `stagnation_warning`
   → 停滞时：强制对所有 UNRESOLVED 张力点做决策，再启动下一团队
 - `tension_points.ttl_remaining` 每轮递减 1，归零时下轮开始前必须决策
 
@@ -529,7 +539,7 @@ Skill 是 Claude Code 的可复用命令文件（`.md` 格式），存放于 `.c
 1. **项目内**：`.claude/skills/` 目录（优先级最高）
 2. **Skill 索引**：`_bmad/config/skill-registry.md`（已注册的项目 Skill + 推荐外部 Skill）
 3. **团队共享**：团队内部 Skill 仓库（如有配置）
-4. **社区**：[clawhub.ai](https://clawhub.ai) 等 Claude Code Skill 社区
+4. **社区**：[glebis/claude-skills](https://github.com/glebis/claude-skills)、[travisvn/awesome-claude-skills](https://github.com/travisvn/awesome-claude-skills)、[Anthropic 官方 Skills](https://github.com/anthropics/claude-code-skills) 等 Claude Code Skill 社区（注意：clawhub.ai 是 OpenClaw 生态，与 Claude Code 不兼容）
 
 ### Story 中声明依赖的 Skill
 
@@ -538,7 +548,7 @@ Skill 是 Claude Code 的可复用命令文件（`.md` 格式），存放于 `.c
 ```yaml
 required_skills:
   - name: skill-name
-    source: project | clawhub | custom
+    source: project | community | custom
     purpose: 简要说明用途
 ```
 
