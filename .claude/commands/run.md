@@ -83,10 +83,18 @@ git checkout {git_checkpoint} -- {每个变更文件}
 **Solo Mode** — 不 TeamCreate，直接在当前会话执行：
 - 直接实现 → 遵循 dev-story workflow，#yolo 模式
 - 引擎：`_bmad/core/tasks/workflow.xml`
+- 轻量澄清：对输入评分，若 `< 7` 进行 **1 轮**快速提问（最多 3 个问题）后再执行
 
 **Sprint Mode / Parallel Sprint Mode** — 严格按 CLAUDE.md 中的启动序列：
 
 ```
+# Step 0: 需求澄清（强制前置）
+# 检查 _bmad-output/sprint-{N}/negotiation/clarification-record.md 是否存在且 user_confirmed: true
+# - 若存在且已确认 → 跳过，直接进入规划阶段（使用 clarification-record.md 作为需求基础）
+# - 若不存在或未确认 → 在当前会话（非 Agent Team）运行澄清工作流：
+#     读取并执行 _bmad/bmm/workflows/0-clarification/instructions.md
+#     完成后输出 clarification-record.md，再继续规划
+
 TeamCreate("sprint-{N}-team")
 
 # 串行：sm 规划

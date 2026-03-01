@@ -74,6 +74,15 @@ git checkout {git_checkpoint} -- {每个变更文件}
 **Sprint Mode**：
 
 ```
+# ─────────────────────────────────────────────────────────────────
+# 强制前置：需求澄清检查（在 TeamCreate 之前，当前会话执行）
+# 若 _bmad-output/sprint-{N}/negotiation/clarification-record.md 存在
+#   且 frontmatter.user_confirmed == true → 直接进入规划，跳过本块
+# 否则：在当前会话运行澄清工作流
+#   读取并执行 _bmad/bmm/workflows/0-clarification/instructions.md
+#   澄清完成且用户确认后，再执行下方 TeamCreate
+# ─────────────────────────────────────────────────────────────────
+
 TeamCreate("sprint-{N}-team")
 
 # 规划协商：并行启动分析与产品设计（信息先行）
@@ -130,6 +139,9 @@ Task(name="dev-frontend-3", ...)  Task(name="dev-backend-3",  ...)  # Feature C
    - _bmad-output/sprint-{N}/negotiation/architect-perspective.md（如存在）
    - _bmad-output/sprint-{N}/negotiation/consensus-R{N}.md（如存在）
 5. 执行任务：{具体描述}
+   主要输入来源（优先级从高到低）：
+   - _bmad-output/sprint-{N}/negotiation/clarification-record.md（若存在且 user_confirmed: true，则作为首要需求基础）
+   - 否则直接使用 orchestrator 传入的需求描述
    引擎：_bmad/core/tasks/workflow.xml
    配置：_bmad/bmm/workflows/{对应路径}（见下方 Workflow 路径表）
 6. Team 模式适配：BMAD 中所有 "STOP and WAIT for user input"
