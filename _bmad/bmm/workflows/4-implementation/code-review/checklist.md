@@ -9,6 +9,7 @@
 - [ ] Tech stack detected and documented
 - [ ] MCP doc search performed (or web fallback) and references captured
 - [ ] Acceptance Criteria cross-checked against implementation
+- [ ] FR alignment verified: for each `implements_fr` listed in Story's Requirement Traceability, confirm the original FR definition in PRD is fully satisfied (not just the Story's AC)
 - [ ] File List reviewed and validated for completeness
 - [ ] Tests identified and mapped to ACs; gaps noted
 - [ ] Code quality review performed on changed files

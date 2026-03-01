@@ -44,8 +44,8 @@
           3. Specify a particular story file to develop (provide full path)
           4. Check {{sprint_status}} file to see current sprint status
 
-          💡 **Tip:** Stories in `ready-for-dev` may not have been validated. Consider running `validate-create-story` first for a quality
-          check.
+          🚨 **MANDATORY:** Stories must be validated before development. Run `validate-create-story` first and confirm the story
+          has `validated: true` in its frontmatter before proceeding.
         </output>
         <ask>Choose option [1], [2], [3], or [4], or specify story file path:</ask>
 

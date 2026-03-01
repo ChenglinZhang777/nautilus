@@ -275,10 +275,11 @@ blocking_log:
     root_cause: "API 契约未在规划阶段锁定"
 
 tension_points:
+  # TTL 规则：initial_ttl: 2 | 每轮 ttl_decrement: 1 | ttl_remaining: 0 时下轮开始前必须决策
   - id: T-1
     description: "状态管理方案：Zustand vs Jotai"
     status: UNRESOLVED
-    ttl_remaining: 1
+    ttl_remaining: 1       # 归零时：decision_required_at: 0，强制决策后才能启动下轮团队
 
 next_round_suggestions:
   - "规划阶段增加 architect-frontend，提前锁定前端技术决策"

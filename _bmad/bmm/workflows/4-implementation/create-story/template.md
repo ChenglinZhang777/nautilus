@@ -2,7 +2,7 @@
 
 Status: ready-for-dev
 
-<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+<!-- 🚨 MANDATORY: Run validate-create-story before dev-story. Story must have validated: true in frontmatter. -->
 
 ## Story
 
@@ -13,6 +13,12 @@ so that {{benefit}}.
 ## Acceptance Criteria
 
 1. [Add acceptance criteria from epics/PRD]
+
+## Requirement Traceability
+
+<!-- Mandatory: Link this story to PRD functional/non-functional requirements -->
+- implements_fr: [FR-X, FR-Y]   # List FR IDs from PRD this story satisfies
+- implements_nfr: [NFR-Z]       # List NFR IDs from PRD this story addresses
 
 ## Tasks / Subtasks
 

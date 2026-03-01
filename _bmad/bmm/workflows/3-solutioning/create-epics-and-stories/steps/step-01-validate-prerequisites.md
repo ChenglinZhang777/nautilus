@@ -91,6 +91,28 @@ Search for required documents using these patterns (sharded means a large docume
 1. `{planning_artifacts}/*ux*.md` (whole document)
 2. `{planning_artifacts}/*ux*/index.md` (sharded version)
 
+**🚨 MANDATORY PRD VALIDATION CHECK:**
+
+After locating the PRD document, check its frontmatter for `validated: true`.
+
+- If `validated: true` is present → proceed normally
+- If `validated: true` is **missing** → BLOCK and display:
+
+  ```
+  ⛔ PRD has not been validated yet.
+
+  The PRD must pass quality validation before Epic and Story creation can begin.
+  This prevents defective requirements from propagating into your entire implementation.
+
+  Please run the PRD validation workflow first:
+    → /bmad-bmm-validate-prd
+
+  Once the PRD is validated (validated: true will be added to its frontmatter),
+  return here to continue with Epic and Story creation.
+  ```
+
+  Do NOT proceed until the user confirms the PRD has been validated.
+
 Before proceeding, Ask the user if there are any other documents to include for analysis, and if anything found should be excluded. Wait for user confirmation. Once confirmed, create the {outputFile} from the {epicsTemplate} and in the front matter list the files in the array of `inputDocuments: []`.
 
 ### 3. Extract Functional Requirements (FRs)
