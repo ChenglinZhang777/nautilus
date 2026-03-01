@@ -30,6 +30,15 @@ required_tools:
   - list_files # Discover features
   - search_repo # Find patterns
   - glob # Find files
+  - bash # Execute agent-browser CLI commands for live E2E testing
+
+# Optional external tools
+optional_tools:
+  - agent_browser: # npm install -g agent-browser && agent-browser install
+      description: "Headless browser CLI for live E2E verification"
+      install: "npm install -g agent-browser && agent-browser install"
+      docs: "https://github.com/vercel-labs/agent-browser"
+      usage_pattern: "snapshot → ref → interact → assert"
 
 tags:
   - qa
