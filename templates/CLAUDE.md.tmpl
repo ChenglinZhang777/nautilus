@@ -70,7 +70,9 @@ git checkout {git_checkpoint} -- {每个变更文件}
 
 - 用户选 **A（续跑）**：进入步骤 3 时启用**续跑模式**，按以下幂等规则跳过已完成阶段：
   - `clarification: done` → 直接读 clarification-record.md，跳过澄清
-  - `planning: done` → 直接读已有 Story 文件，跳过 sm/pm/architect/analyst
+  - `planning.batch_a: done, batch_b: not-done` → 跳过 Batch A，从 Batch B（交叉评审）续跑
+  - `planning.batch_b: done, batch_c: not-done` → 跳过 Batch A+B，从 Batch C（SM 综合）续跑
+  - `planning: done` → 直接读已有 Story 文件，跳过全部规划
   - `implementation: partial` → 只启动 stories 中 status=ready-for-dev 的条目
   - `qa: partial` → 只启动 reports 中值为 null 的维度
 - 用户选 **B（全新）**：忽略 checkpoint，正常进入步骤 1
@@ -119,20 +121,28 @@ TeamCreate("sprint-{N}-team")
 # ── 阶段 2：规划协商 ──
 # 写 checkpoint.yaml: phases.planning.status = in-progress
 
-# 并行启动分析与产品设计（信息先行）
-Task(name="analyst",  run_in_background=True, team_name="sprint-{N}-team", ...)
-Task(name="pm",       run_in_background=True, team_name="sprint-{N}-team", ...)
-Task(name="architect",run_in_background=True, team_name="sprint-{N}-team", ...)
-# 收到所有汇报 → SM 综合写 consensus-R{N}.md
+# ── Batch A：并行初始分析（信息先行，互不依赖）──
+# 写 checkpoint.yaml: phases.planning.batch_a = in-progress
+Task(name="analyst",  run_in_background=True, team_name="sprint-{N}-team", ...)  # → analyst-perspective.md
+Task(name="pm",       run_in_background=True, team_name="sprint-{N}-team", ...)  # → pm-perspective.md
+Task(name="architect",run_in_background=True, team_name="sprint-{N}-team", ...)  # → architect-perspective.md
+# 收到所有汇报后：写 checkpoint.yaml: phases.planning.batch_a = done
 
-# 串行：sm 基于完整信息做 Sprint 规划与 Story 分解
+# ── Batch B：交叉评审（并行，互读对方视角，指出张力/盲点/遗漏）──
+# 写 checkpoint.yaml: phases.planning.batch_b = in-progress
+Task(name="analyst",  run_in_background=True, team_name="sprint-{N}-team", ...)  # 读 pm+architect perspective → analyst-crossreview.md
+Task(name="pm",       run_in_background=True, team_name="sprint-{N}-team", ...)  # 读 analyst+architect perspective → pm-crossreview.md
+Task(name="architect",run_in_background=True, team_name="sprint-{N}-team", ...)  # 读 analyst+pm perspective → architect-crossreview.md
+# 收到所有汇报后：写 checkpoint.yaml: phases.planning.batch_b = done
+
+# ── Batch C：SM 综合形成共识并分解 Story ──
+# 写 checkpoint.yaml: phases.planning.batch_c = in-progress
 Task(name="sm", subagent_type="general-purpose", team_name="sprint-{N}-team",
      prompt=[类型A模板，workflow=sprint-planning+create-story，
-            额外输入：consensus-R{N}.md + 三个perspective文件])
-
+            额外输入：3×perspective + 3×crossreview + clarification-record.md])
 # sm 完成后：
-# 写 checkpoint.yaml: phases.planning.status = done
-#                      output.sm / output.pm / output.architect / output.analyst = 各自文件路径
+# 写 checkpoint.yaml: phases.planning.status = done, batch_c = done
+#                      output.analyst/pm/architect + crossreview 路径 + consensus 路径
 
 # ── 阶段 3：并行实现（按 Story 依赖分批，每批同一消息并发）──
 # 写 checkpoint.yaml: phases.implementation.status = in-progress
@@ -191,7 +201,9 @@ Task(name="dev-frontend-3", ...)  Task(name="dev-backend-3",  ...)  # Feature C
    - _bmad-output/sprint-{N}/negotiation/analyst-perspective.md（如存在）
    - _bmad-output/sprint-{N}/negotiation/pm-perspective.md（如存在）
    - _bmad-output/sprint-{N}/negotiation/architect-perspective.md（如存在）
-   - _bmad-output/sprint-{N}/negotiation/consensus-R{N}.md（如存在）
+   - _bmad-output/sprint-{N}/negotiation/analyst-crossreview.md（如存在）
+   - _bmad-output/sprint-{N}/negotiation/pm-crossreview.md（如存在）
+   - _bmad-output/sprint-{N}/negotiation/architect-crossreview.md（如存在）
 5. 执行任务：{具体描述}
    主要输入来源（优先级从高到低）：
    - _bmad-output/sprint-{N}/negotiation/clarification-record.md（若存在且 user_confirmed: true，则作为首要需求基础）
@@ -205,9 +217,32 @@ Task(name="dev-frontend-3", ...)  Task(name="dev-backend-3",  ...)  # Feature C
          content="完成。摘要：[3句] 张力点：[如有，注明 RESOLVED/UNRESOLVED]")
 输出：_bmad-output/sprint-{N}/negotiation/{role}-perspective.md
      （sm 额外输出：
-       - consensus-R{N}.md（综合三个 perspective 的共识）
+       - consensus-R{N}.md（综合 3×perspective + 3×crossreview 的共识）
        - Story 文件至 _bmad-output/implementation-artifacts/{story-key}.md）
 ```
+
+**类型 A-B — 交叉评审类（analyst / pm / architect，用于 Batch B）**
+
+```
+1. 读取并完整内化 _bmad/bmm/agents/{role}.md 的 persona，你就是这个角色
+2. 读取 _bmad/bmm/config.yaml，加载项目配置
+3. 读取最新 evolution-log（如存在），将 next_round_suggestions 作为约束
+4. 读取**其他两个角色**的初始分析视角（按你的角色对应读取）：
+   - analyst 执行时：读 pm-perspective.md + architect-perspective.md
+   - pm 执行时：读 analyst-perspective.md + architect-perspective.md
+   - architect 执行时：读 analyst-perspective.md + pm-perspective.md
+5. 执行交叉评审，输出包含以下四部分：
+   a. **共识确认**：与你的视角高度吻合的观点（支持保留，注明来源角色）
+   b. **分歧/张力点**：与你的视角存在冲突之处，标注 RESOLVED/UNRESOLVED 及建议
+   c. **盲点补充**：对方视角遗漏的、你专业领域内的关键信息
+   d. **修正建议**：针对对方视角提出的具体改进意见（可带优先级）
+6. Team 模式适配：同类型 A 第 6 条
+7. 完成：SendMessage(type="message", recipient="orchestrator",
+         content="交叉评审完成。分歧点：[N 条，UNRESOLVED/RESOLVED] 盲点补充：[M 条]")
+输出：_bmad-output/sprint-{N}/negotiation/{role}-crossreview.md
+```
+
+---
 
 **类型 B — 实现类（dev-frontend-N / dev-backend-N / dev-devops）**
 
@@ -280,11 +315,17 @@ phases:
 
   planning:
     status: done
+    batch_a: done         # not-started | in-progress | done（Batch A 初始分析）
+    batch_b: done         # not-started | in-progress | done（Batch B 交叉评审）
+    batch_c: done         # not-started | in-progress | done（Batch C SM 综合）
     output:
-      sm:        _bmad-output/sprint-{N}/negotiation/sm-perspective.md
-      pm:        _bmad-output/sprint-{N}/negotiation/pm-perspective.md
-      architect: _bmad-output/sprint-{N}/negotiation/architect-perspective.md
-      analyst:   _bmad-output/sprint-{N}/negotiation/analyst-perspective.md
+      analyst:             _bmad-output/sprint-{N}/negotiation/analyst-perspective.md
+      pm:                  _bmad-output/sprint-{N}/negotiation/pm-perspective.md
+      architect:           _bmad-output/sprint-{N}/negotiation/architect-perspective.md
+      analyst_crossreview: _bmad-output/sprint-{N}/negotiation/analyst-crossreview.md
+      pm_crossreview:      _bmad-output/sprint-{N}/negotiation/pm-crossreview.md
+      architect_crossreview: _bmad-output/sprint-{N}/negotiation/architect-crossreview.md
+      consensus:           _bmad-output/sprint-{N}/negotiation/consensus-R{N}.md
 
   implementation:
     status: partial       # partial = 有 Story 未完成

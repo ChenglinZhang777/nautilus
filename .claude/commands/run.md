@@ -75,7 +75,9 @@ git checkout {git_checkpoint} -- {每个变更文件}
 
 - 用户选 **A（续跑）**：进入步骤 3 时启用**续跑模式**，按以下幂等规则跳过已完成阶段：
   - `clarification: done` → 直接读 clarification-record.md，跳过澄清
-  - `planning: done` → 直接读已有 Story 文件，跳过 sm/pm/architect/analyst
+  - `planning.batch_a: done, batch_b: not-done` → 跳过 Batch A，从 Batch B（交叉评审）续跑
+  - `planning.batch_b: done, batch_c: not-done` → 跳过 Batch A+B，从 Batch C（SM 综合）续跑
+  - `planning: done` → 直接读已有 Story 文件，跳过全部规划
   - `implementation: partial` → 只启动 stories 中 status=ready-for-dev 的条目
   - `qa: partial` → 只启动 reports 中值为 null 的维度
 - 用户选 **B（全新）**：忽略 checkpoint，正常进入步骤 1
@@ -131,16 +133,24 @@ TeamCreate("sprint-{N}-team")
 # ── 阶段 2：规划协商 ──
 # 写 checkpoint.yaml: phases.planning.status = in-progress
 
-# 串行：sm 规划
-Task(name="sm", ...) → sprint-planning + create-story
+# ── Batch A：并行初始分析（信息先行，互不依赖）──
+# 写 checkpoint.yaml: phases.planning.batch_a = in-progress
+Task(name="analyst",  run_in_background=True, ...)  # → analyst-perspective.md
+Task(name="pm",       run_in_background=True, ...)  # → pm-perspective.md
+Task(name="architect",run_in_background=True, ...)  # → architect-perspective.md
+# 收到所有汇报后：写 checkpoint.yaml: phases.planning.batch_a = done
 
-# sm 完成后，同一消息并发规划
-Task(name="pm",       run_in_background=True, ...)
-Task(name="architect",run_in_background=True, ...)
-Task(name="analyst",  run_in_background=True, ...)
+# ── Batch B：交叉评审（并行，互读对方视角，指出张力/盲点/遗漏）──
+# 写 checkpoint.yaml: phases.planning.batch_b = in-progress
+Task(name="analyst",  run_in_background=True, ...)  # 读 pm+architect perspective → analyst-crossreview.md
+Task(name="pm",       run_in_background=True, ...)  # 读 analyst+architect perspective → pm-crossreview.md
+Task(name="architect",run_in_background=True, ...)  # 读 analyst+pm perspective → architect-crossreview.md
+# 收到所有汇报后：写 checkpoint.yaml: phases.planning.batch_b = done
 
-# 规划全部完成后：
-# 写 checkpoint.yaml: phases.planning.status = done
+# ── Batch C：SM 综合形成共识并分解 Story ──
+# 写 checkpoint.yaml: phases.planning.batch_c = in-progress
+Task(name="sm", ...) → 读 3×perspective + 3×crossreview → consensus-R{N}.md → sprint-planning + stories
+# 完成后：写 checkpoint.yaml: phases.planning.status = done, batch_c = done
 
 # ── 阶段 3：并行实现（按 Story 依赖分批）──
 # 写 checkpoint.yaml: phases.implementation.status = in-progress
