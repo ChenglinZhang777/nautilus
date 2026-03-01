@@ -48,55 +48,41 @@ resolve_framework_source() {
   fi
 }
 
-# ── 交互式收集配置 ────────────────────────────────────────────────────────────
-# 支持环境变量非交互式模式：
-#   PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese bash install.sh
+# ── 收集配置 ──────────────────────────────────────────────────────────────────
+# 更新时自动沿用已有配置；首次安装使用智能默认值（支持环境变量覆盖）。
 collect_config() {
-  # 默认值推断
-  local default_project default_user
-  default_project=$(basename "$(pwd)")
-  default_user=${USER:-$(git config user.name 2>/dev/null || echo "Developer")}
+  local existing_bmm_config="$PWD/_bmad/bmm/config.yaml"
+  local existing_core_config="$PWD/_bmad/core/config.yaml"
 
-  # 若已通过环境变量提供，跳过交互
-  if [[ -n "${PROJECT_NAME:-}" && -n "${USER_NAME:-}" && -n "${LANGUAGE:-}" ]]; then
-    info "非交互式模式（使用环境变量配置）"
-    PROJECT_NAME="${PROJECT_NAME}"
-    USER_NAME="${USER_NAME}"
-    LANGUAGE="${LANGUAGE}"
-  else
-    # 交互式模式（需要 tty）
-    if [[ ! -t 0 ]]; then
-      error "stdin 不是终端，请用环境变量模式："
-      error "  PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese bash install.sh"
-      exit 1
-    fi
+  # 更新模式：从已有配置读取，跳过所有提示
+  if [[ -f "$existing_bmm_config" && -f "$existing_core_config" ]]; then
+    PROJECT_NAME=$(sed -n 's/^project_name: *//p' "$existing_bmm_config")
+    USER_NAME=$(sed -n 's/^user_name: *//p' "$existing_core_config")
+    LANGUAGE=$(sed -n 's/^communication_language: *//p' "$existing_core_config")
+    info "更新模式：沿用已有配置（项目: $PROJECT_NAME, 用户: $USER_NAME, 语言: $LANGUAGE）"
+    return
+  fi
 
-    echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  Nautilus 安装 v${BMAD_VERSION}${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
+  # 首次安装：智能默认值（支持环境变量覆盖）
+  PROJECT_NAME=${PROJECT_NAME:-$(basename "$(pwd)")}
+  USER_NAME=${USER_NAME:-$(git config user.name 2>/dev/null || echo "${USER:-Developer}")}
+  LANGUAGE=${LANGUAGE:-Chinese}
 
-    read -rp "项目名称 [${default_project}]: " PROJECT_NAME
-    PROJECT_NAME="${PROJECT_NAME:-$default_project}"
+  echo ""
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${BLUE}  Nautilus 安装 v${BMAD_VERSION}${NC}"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+  echo "  项目名称：$PROJECT_NAME"
+  echo "  用户名：  $USER_NAME"
+  echo "  语言：    $LANGUAGE"
+  echo ""
 
-    read -rp "你的名字 [${default_user}]: " USER_NAME
-    USER_NAME="${USER_NAME:-$default_user}"
-
-    echo "语言选项: 1) 中文  2) English"
-    read -rp "选择语言 [1]: " LANG_CHOICE
-    case "${LANG_CHOICE:-1}" in
-      2) LANGUAGE="English" ;;
-      *) LANGUAGE="Chinese" ;;
-    esac
-
-    echo ""
-    echo "  项目名称：$PROJECT_NAME"
-    echo "  用户名：  $USER_NAME"
-    echo "  语言：    $LANGUAGE"
-    echo ""
+  if [[ -t 0 ]]; then
     read -rp "确认安装? [Y/n]: " CONFIRM
     [[ "${CONFIRM:-Y}" =~ ^[Nn]$ ]] && { info "已取消"; exit 0; }
+  else
+    info "非交互模式，使用以上默认配置"
   fi
 }
 
@@ -128,7 +114,7 @@ install_framework() {
   fill_template "$SOURCE_DIR/templates/bmm-config.yaml.tmpl" \
                 "$target_dir/_bmad/bmm/config.yaml"
 
-  # 3. 生成 CLAUDE.md
+  # 4. 生成 CLAUDE.md
   info "生成 CLAUDE.md..."
   if [[ -f "$target_dir/CLAUDE.md" ]]; then
     warn "CLAUDE.md 已存在，备份为 CLAUDE.md.bak"
@@ -136,11 +122,11 @@ install_framework() {
   fi
   fill_template "$SOURCE_DIR/templates/CLAUDE.md.tmpl" "$target_dir/CLAUDE.md"
 
-  # 4. 更新 .gitignore
+  # 5. 更新 .gitignore
   info "更新 .gitignore..."
   update_gitignore "$target_dir"
 
-  # 5. 创建 docs/ 目录（project_knowledge 默认路径）
+  # 6. 创建 docs/ 目录（project_knowledge 默认路径）
   mkdir -p "$target_dir/docs"
 }
 

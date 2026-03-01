@@ -14,26 +14,25 @@
 curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh | bash
 ```
 
+脚本会自动推断配置（项目名 = 当前目录名，用户名 = git config，语言 = 中文），确认后安装。
+
 安装完成后，在当前目录打开 Claude Code：
 
 ```bash
 claude
 ```
 
-## 非交互式安装（CI / 脚本）
+如需覆盖默认值，可通过环境变量指定（均为可选）：
 
 ```bash
-PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese \
-  bash <(curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh)
+LANGUAGE=English bash <(curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh)
 ```
 
-支持的环境变量：
-
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `PROJECT_NAME` | 项目名称 | `myapp` |
-| `USER_NAME` | 用户名 | `Alice` |
-| `LANGUAGE` | 语言（`Chinese` / `English`） | `Chinese` |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `PROJECT_NAME` | 项目名称 | 当前目录名 |
+| `USER_NAME` | 用户名 | `git config user.name` |
+| `LANGUAGE` | `Chinese` / `English` | `Chinese` |
 
 ## 安装内容
 
@@ -67,20 +66,22 @@ your-project/
 
 ## 框架更新
 
-重新运行安装脚本即可（`_bmad/` 覆盖更新，`CLAUDE.md` 备份为 `.bak`）：
+重新运行安装脚本即可，无需任何参数——脚本会自动从已有配置中读取项目名、用户名和语言：
 
 ```bash
-PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese \
-  bash <(curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh)
+curl -fsSL https://raw.githubusercontent.com/ChenglinZhang777/nautilus/main/scripts/install.sh | bash
 ```
+
+更新内容：`_bmad/` 覆盖更新，`CLAUDE.md` 备份为 `.bak`，`.claude/commands/` 同步更新。
 
 ## .gitignore 规则
 
 安装时自动添加：
 
 ```gitignore
-_bmad/_memory/    # Evolution log（运行时，不纳入版本）
-_bmad-output/     # Sprint 产物（按需决定是否提交）
+# Nautilus runtime data
+_bmad/_memory/
+_bmad-output/
 .env
 ```
 
@@ -96,6 +97,5 @@ _bmad-output/sprint-*/
 ```bash
 git clone https://github.com/ChenglinZhang777/nautilus
 cd your-project
-PROJECT_NAME=myapp USER_NAME=Alice LANGUAGE=Chinese \
-  bash /path/to/nautilus/scripts/install.sh
+bash /path/to/nautilus/scripts/install.sh
 ```
