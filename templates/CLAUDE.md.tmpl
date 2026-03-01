@@ -32,14 +32,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 TeamCreate("sprint-{N}-team")
 
-# 规划协商：先串行启动 sm
-Task(name="sm", subagent_type="general-purpose", team_name="sprint-{N}-team",
-     prompt=[类型A模板，workflow=sprint-planning+create-story])
-# sm 汇报完成后，同一消息并发：
+# 规划协商：并行启动分析与产品设计（信息先行）
+Task(name="analyst",  run_in_background=True, team_name="sprint-{N}-team", ...)
 Task(name="pm",       run_in_background=True, team_name="sprint-{N}-team", ...)
 Task(name="architect",run_in_background=True, team_name="sprint-{N}-team", ...)
-Task(name="analyst",  run_in_background=True, team_name="sprint-{N}-team", ...)
-# 收到所有汇报 → 综合写 consensus-R{N}.md
+# 收到所有汇报 → SM 综合写 consensus-R{N}.md（基于三个 perspective）
+# → 启动 SM 时确保 consensus 已存在（或降级为直接读取三个 perspective）
+
+# 串行：sm 基于完整信息（分析 + PRD + 架构）做 Sprint 规划与 Story 分解
+Task(name="sm", subagent_type="general-purpose", team_name="sprint-{N}-team",
+     prompt=[类型A模板，workflow=sprint-planning+create-story，
+            额外输入：consensus-R{N}.md + 三个perspective文件])
 
 # 并行实现：按 Story 依赖分批，每批同一消息并发
 Task(name="dev-frontend-1", team_name="sprint-{N}-team", ...)  # Story FE-X
@@ -77,16 +80,23 @@ Task(name="dev-frontend-3", ...)  Task(name="dev-backend-3",  ...)  # Feature C
 1. 读取并完整内化 _bmad/bmm/agents/{role}.md 的 persona，你就是这个角色
 2. 读取 _bmad/bmm/config.yaml，加载项目配置
 3. 读取最新 evolution-log（如存在），将 next_round_suggestions 作为约束
-4. 执行任务：{具体描述}
+4. 读取本轮协商产出（SM 专用，其他角色跳过）：
+   - _bmad-output/sprint-{N}/negotiation/analyst-perspective.md（如存在）
+   - _bmad-output/sprint-{N}/negotiation/pm-perspective.md（如存在）
+   - _bmad-output/sprint-{N}/negotiation/architect-perspective.md（如存在）
+   - _bmad-output/sprint-{N}/negotiation/consensus-R{N}.md（如存在）
+5. 执行任务：{具体描述}
    引擎：_bmad/core/tasks/workflow.xml
    配置：_bmad/bmm/workflows/{对应路径}（见下方 Workflow 路径表）
-5. Team 模式适配：BMAD 中所有 "STOP and WAIT for user input"
+6. Team 模式适配：BMAD 中所有 "STOP and WAIT for user input"
    → 改为 SendMessage(type="message", recipient="orchestrator", content="[问题/阶段产出]")
    → 等 orchestrator 回复后继续
-6. 完成：SendMessage(type="message", recipient="orchestrator",
+7. 完成：SendMessage(type="message", recipient="orchestrator",
          content="完成。摘要：[3句] 张力点：[如有，注明 RESOLVED/UNRESOLVED]")
 输出：_bmad-output/sprint-{N}/negotiation/{role}-perspective.md
-     （sm 额外输出 Story 文件至 _bmad-output/implementation-artifacts/{story-key}.md）
+     （sm 额外输出：
+       - consensus-R{N}.md（综合三个 perspective 的共识）
+       - Story 文件至 _bmad-output/implementation-artifacts/{story-key}.md）
 ```
 
 **类型 B — 实现类（dev-frontend-N / dev-backend-N / dev-devops）**
@@ -98,9 +108,16 @@ Task(name="dev-frontend-3", ...)  Task(name="dev-backend-3",  ...)  # Feature C
    · dev-frontend-N：只处理 React/TS/UI，不修改后端代码
    · dev-backend-N ：只处理 API/DB/Service，不修改前端代码
    · dev-devops    ：只处理 CI/CD/部署/监控，不修改业务代码
-4. 读取 Story 文件：_bmad-output/implementation-artifacts/{story-key}.md — 这是唯一权威实现指南
+4. 读取 Story 文件：{story_file_path} — 这是唯一权威实现指南
+   （路径由 orchestrator 在启动时传入，格式：_bmad-output/implementation-artifacts/{story-key}.md）
 5. 执行 dev-story workflow，#yolo 模式（无需任何中途确认）
    _bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml
+
+# 【重要】阻塞追踪：
+# - 如果被其他 agent 阻塞：在 Dev Notes 中记录 "BLOCKED: 等待 {agent} 提供 {信息}"
+# - 发送消息给 orchestrator: "BLOCKED: 等待 {agent} 提供 {信息}"
+# - 不要干等，继续能做的部分
+
 6. 完成：SendMessage(type="message", recipient="orchestrator",
          content="Story[ID]完成。测试：全部通过。变更文件：[列表]。注意：[偏差或阻塞]")
 ```
@@ -276,6 +293,7 @@ next_team_config: sprint-mode
 
 | 命令 | 用途 |
 |------|------|
+| `/run` | 统一入口（自动判断模式并启动团队） |
 | `/bmad-party-mode` | 手动启动多 agent 协商 |
 | `/bmad-bmm-sprint-planning` | Sprint 规划 |
 | `/bmad-bmm-create-story` | 创建 Story 文件 |
