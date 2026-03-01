@@ -502,3 +502,53 @@ next_team_config: sprint-mode
 | `/bmad-bmm-quick-spec` | Solo 快速规格 |
 | `/bmad-bmm-quick-dev` | Solo 快速实现 |
 | `/bmad-help` | 不知道下一步时 |
+
+---
+
+## Skill 优先原则
+
+### 什么是 Skill
+
+Skill 是 Claude Code 的可复用命令文件（`.md` 格式），存放于 `.claude/skills/` 目录下。每个 Skill 封装了一个特定的自动化能力（如代码生成、文件处理、API 调用模式等），Agent 可以通过 Skill 工具直接调用，无需编写独立脚本。
+
+### 核心原则
+
+**Agent 执行任务时，优先查找并复用已有 Skill，而不是编写独立脚本。**
+
+判断标准：
+
+| 场景 | 选择 |
+|------|------|
+| 已有 Skill 覆盖需求 | 直接调用 Skill |
+| 已有 Skill 部分覆盖，可扩展 | 扩展已有 Skill 后调用 |
+| 纯项目特定逻辑、一次性操作 | 编写脚本 |
+| 通用能力，未来可复用 | 先创建 Skill，再调用 |
+
+### 查找 Skill 的渠道
+
+1. **项目内**：`.claude/skills/` 目录（优先级最高）
+2. **Skill 索引**：`_bmad/config/skill-registry.md`（已注册的项目 Skill + 推荐外部 Skill）
+3. **团队共享**：团队内部 Skill 仓库（如有配置）
+4. **社区**：[clawhub.ai](https://clawhub.ai) 等 Claude Code Skill 社区
+
+### Story 中声明依赖的 Skill
+
+在 Story 文件的 `Dev Notes` 部分，使用 `required_skills:` 字段声明本 Story 实现所需的 Skill：
+
+```yaml
+required_skills:
+  - name: skill-name
+    source: project | clawhub | custom
+    purpose: 简要说明用途
+```
+
+Dev Agent 在实现前需确认所有 `required_skills` 均可用。若缺失，应先安装或创建对应 Skill。
+
+### 贡献新 Skill 回框架
+
+当 Dev Agent 在实现过程中创建了通用性较高的新 Skill 时：
+
+1. 将 Skill 文件放入 `.claude/skills/` 目录
+2. 更新 `_bmad/config/skill-registry.md` 索引
+3. 在 Story 的 Change Log 中记录新增 Skill
+4. 若为框架级通用能力，考虑提交 PR 到 Nautilus 主仓库

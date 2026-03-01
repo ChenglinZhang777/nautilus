@@ -142,6 +142,25 @@
     <action>Load comprehensive context from story file's Dev Notes section</action>
     <action>Extract developer guidance from Dev Notes: architecture requirements, previous learnings, technical specifications</action>
     <action>Use enhanced story context to inform implementation decisions and approaches</action>
+
+    <!-- Skill 可用性检查 -->
+    <action>Check if Dev Notes contains a `required_skills:` section</action>
+    <check if="required_skills section exists">
+      <action>For each declared skill, verify availability:
+        - source=project → check .claude/skills/{skill-name}.md exists
+        - source=clawhub/custom → check if skill is installed or accessible
+      </action>
+      <action if="any required skill is missing">
+        <output>⚠️ 缺失 Skill：{{missing_skills}}
+          请先安装或创建所需 Skill，再继续实现。
+        </output>
+        HALT: "Required skills not available — install or create them before proceeding"
+      </action>
+      <action if="all required skills available">
+        <output>✅ 所有 required_skills 已确认可用</output>
+      </action>
+    </check>
+
     <output>✅ **Context Loaded**
       Story and project context available for implementation
     </output>

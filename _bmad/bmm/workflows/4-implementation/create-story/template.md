@@ -33,6 +33,15 @@ so that {{benefit}}.
 - Source tree components to touch
 - Testing standards summary
 
+### Required Skills
+
+<!-- 声明本 Story 实现所需的 Skill，Dev Agent 会在实现前自动检查可用性 -->
+<!-- required_skills:
+  - name: skill-name
+    source: project | clawhub | custom
+    purpose: 简要说明用途
+-->
+
 ### Project Structure Notes
 
 - Alignment with unified project structure (paths, modules, naming)
