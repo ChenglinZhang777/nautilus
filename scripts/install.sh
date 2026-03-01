@@ -10,8 +10,15 @@ set -euo pipefail
 
 BMAD_VERSION="6.0.3"
 REPO_URL="https://github.com/ChenglinZhang777/nautilus"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRAMEWORK_DIR="$(dirname "$SCRIPT_DIR")"
+# 兼容 curl|bash 管道执行：此时 BASH_SOURCE[0] 为未设置的数组元素
+_SCRIPT_SOURCE="${BASH_SOURCE[0]:-}"
+if [[ -n "$_SCRIPT_SOURCE" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$_SCRIPT_SOURCE")" && pwd)"
+  FRAMEWORK_DIR="$(dirname "$SCRIPT_DIR")"
+else
+  SCRIPT_DIR=""
+  FRAMEWORK_DIR=""
+fi
 
 # ── 颜色输出 ────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
@@ -59,7 +66,11 @@ collect_config() {
     PROJECT_NAME=$(sed -n 's/^project_name: *//p' "$existing_bmm_config")
     USER_NAME=$(sed -n 's/^user_name: *//p' "$existing_core_config")
     LANGUAGE=$(sed -n 's/^communication_language: *//p' "$existing_core_config")
-    info "更新模式：沿用已有配置（项目: $PROJECT_NAME, 用户: $USER_NAME, 语言: $LANGUAGE）"
+    # 确保变量非空（防止配置 key 缺失时触发 -u 错误）
+    PROJECT_NAME="${PROJECT_NAME:-$(basename "$(pwd)")}"
+    USER_NAME="${USER_NAME:-${USER:-Developer}}"
+    LANGUAGE="${LANGUAGE:-Chinese}"
+    info "更新模式：沿用已有配置（项目: ${PROJECT_NAME}, 用户: ${USER_NAME}, 语言: ${LANGUAGE}）"
     return
   fi
 
