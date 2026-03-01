@@ -6,6 +6,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 操作规则（接到任何任务必须先执行）
 
+### 步骤 0：中断恢复检测（优先执行，无论需求是否为空）
+
+检查 `_bmad-output/implementation-artifacts/sprint-status.yaml` 是否存在：
+
+- **不存在** → 无历史 Sprint，跳过本步骤
+- **存在** → 扫描 `development_status` 中所有值为 `in-progress` 的 Story key
+
+对每个 `in-progress` 的 story_key：
+1. 读取对应 Story 文件（`_bmad-output/implementation-artifacts/{story_key}.md`）
+2. 提取 `Dev Agent Record → Git Checkpoint` 字段值
+
+**若存在 git_checkpoint**，向用户展示：
+
+```
+⚠️ 发现未完成的 Story：{story_key}
+   Git 检查点：{git_checkpoint}
+   该 Story 可能因中断而处于脏状态（部分代码已写入但未完成）。
+
+选项：
+  A) 回滚到检查点并重新开发（推荐）
+  B) 跳过，保留当前状态继续本次需求
+```
+
+若用户选择 **A（回滚）**，执行以下操作：
+```bash
+# 1. 获取该 Story 自检查点以来的所有变更文件
+git diff {git_checkpoint} --name-only
+
+# 2. 逐一回滚每个变更文件到检查点状态
+git checkout {git_checkpoint} -- {每个变更文件}
+```
+然后：
+- 将 `sprint-status.yaml` 中该 Story 的状态改回 `ready-for-dev`
+- 清空 Story 文件的 `Git Checkpoint` 字段（置为空）
+- 输出：`✅ 已回滚 N 个文件，{story_key} 重置为 ready-for-dev，可重新开发`
+
+**若 git_checkpoint 缺失**（Story 处于 in-progress 但无检查点）：
+- 警告：`⚠️ {story_key} 状态异常（in-progress 但无检查点记录），建议人工确认后再继续`
+- 询问用户是否手动重置为 ready-for-dev
+
+若无任何 `in-progress` Story → 直接进入步骤 1。
+
+---
+
 ### 步骤 1：读进化经验
 
 检查 `_bmad/_memory/evolution-log-R*.md`，若存在则读最新一份：

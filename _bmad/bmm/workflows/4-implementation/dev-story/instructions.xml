@@ -200,6 +200,15 @@
         </output>
       </check>
 
+      <!-- Git snapshot for fault tolerance: record checkpoint on FRESH start only (not resume/review) -->
+      <check if="current status == 'ready-for-dev' AND review_continuation == false">
+        <action>Run bash command: git rev-parse HEAD → store result as {{git_checkpoint}}</action>
+        <action>Write {{git_checkpoint}} value to the "Dev Agent Record → Git Checkpoint" section in the story file</action>
+        <output>📌 Git 检查点已记录：{{git_checkpoint}}
+          （若执行中断，可通过此检查点回滚至干净状态再重跑）
+        </output>
+      </check>
+
       <check if="current status == 'in-progress'">
         <output>⏯️ Resuming work on story {{story_key}}
           Story is already marked in-progress

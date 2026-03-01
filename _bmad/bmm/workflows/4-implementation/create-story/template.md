@@ -44,6 +44,10 @@ so that {{benefit}}.
 
 ## Dev Agent Record
 
+### Git Checkpoint
+
+<!-- Recorded automatically when story starts (ready-for-dev → in-progress). Used for rollback on interruption. Do not edit manually. -->
+
 ### Agent Model Used
 
 {{agent_model_name_version}}
