@@ -51,7 +51,36 @@ git checkout {git_checkpoint} -- {每个变更文件}
 - 警告：`⚠️ {story_key} 状态异常（in-progress 但无检查点记录），建议人工确认后再继续`
 - 询问用户是否手动重置为 ready-for-dev
 
-若无任何 `in-progress` Story → 直接进入步骤 1。
+若无任何 `in-progress` Story → 直接进入步骤 0b。
+
+---
+
+#### 步骤 0b：Sprint 阶段断点检测
+
+查找 `_bmad-output/sprint-*/checkpoint.yaml`（取 sprint 编号最大者）：
+
+- **不存在** → 跳过，进入步骤 1
+- **存在** → 按顺序扫描 `phases`：clarification → planning → implementation → qa → evolution
+
+找到第一个 `status` 不为 `done` 的阶段后，向用户展示：
+
+```
+[WARNING] 发现未完成的 Sprint-{N}，中断于 [{phase_name}] 阶段
+          上次更新：{last_updated}
+
+选项：
+  A) 从 [{phase_name}] 续跑（推荐）
+  B) 忽略历史，全新执行本次需求
+```
+
+- 用户选 **A（续跑）**：进入步骤 3 时启用**续跑模式**，按以下幂等规则跳过已完成阶段：
+  - `clarification: done` → 直接读 clarification-record.md，跳过澄清
+  - `planning: done` → 直接读已有 Story 文件，跳过 sm/pm/architect/analyst
+  - `implementation: partial` → 只启动 stories 中 status=ready-for-dev 的条目
+  - `qa: partial` → 只启动 reports 中值为 null 的维度
+- 用户选 **B（全新）**：忽略 checkpoint，正常进入步骤 1
+
+若所有阶段均为 `done` → 该 Sprint 已完成，直接进入步骤 1 处理新需求。
 
 ---
 
@@ -88,14 +117,19 @@ git checkout {git_checkpoint} -- {每个变更文件}
 **Sprint Mode / Parallel Sprint Mode** — 严格按 CLAUDE.md 中的启动序列：
 
 ```
-# Step 0: 需求澄清（强制前置）
+# ── 阶段 1：需求澄清（强制前置，在 TeamCreate 之前，当前会话执行）──
 # 检查 _bmad-output/sprint-{N}/negotiation/clarification-record.md 是否存在且 user_confirmed: true
 # - 若存在且已确认 → 跳过，直接进入规划阶段（使用 clarification-record.md 作为需求基础）
-# - 若不存在或未确认 → 在当前会话（非 Agent Team）运行澄清工作流：
+# - 若不存在或未确认：
+#     写 checkpoint.yaml: phases.clarification.status = in-progress
 #     读取并执行 _bmad/bmm/workflows/0-clarification/instructions.md
-#     完成后输出 clarification-record.md，再继续规划
+#     完成后输出 clarification-record.md
+#     写 checkpoint.yaml: phases.clarification.status = done, output = clarification-record.md 路径
 
 TeamCreate("sprint-{N}-team")
+
+# ── 阶段 2：规划协商 ──
+# 写 checkpoint.yaml: phases.planning.status = in-progress
 
 # 串行：sm 规划
 Task(name="sm", ...) → sprint-planning + create-story
@@ -105,16 +139,35 @@ Task(name="pm",       run_in_background=True, ...)
 Task(name="architect",run_in_background=True, ...)
 Task(name="analyst",  run_in_background=True, ...)
 
-# 并行实现（按 Story 依赖分批）
+# 规划全部完成后：
+# 写 checkpoint.yaml: phases.planning.status = done
+
+# ── 阶段 3：并行实现（按 Story 依赖分批）──
+# 写 checkpoint.yaml: phases.implementation.status = in-progress
+# 每个 Story 状态变化时同步 checkpoint.yaml: phases.implementation.stories.{key} = {status}
+
 Task(name="dev-frontend-1", ...) + Task(name="dev-backend-1", ...) + Task(name="dev-devops", ...)
 
-# 并行审查（实现完成后，同一消息并发）
+# 所有 Story done 后：
+# 写 checkpoint.yaml: phases.implementation.status = done
+
+# ── 阶段 4：并行审查（实现完成后，同一消息并发）──
+# 写 checkpoint.yaml: phases.qa.status = in-progress
+
 Task(name="qa-security",run_in_background=True, ...)
 Task(name="qa-e2e",     run_in_background=True, ...)
 Task(name="qa-perf",    run_in_background=True, ...)
 
-# 进化蒸馏
+# 每个维度完成后：
+# 写 checkpoint.yaml: phases.qa.reports.{security|e2e|perf} = 报告路径
+# 全部维度完成后：写 checkpoint.yaml: phases.qa.status = done
+
+# ── 阶段 5：进化蒸馏 ──
+# 写 checkpoint.yaml: phases.evolution.status = in-progress
+
 Task(name="tech-writer", ...) → 写 _bmad/_memory/evolution-log-R{N}.md
+
+# 完成后：写 checkpoint.yaml: phases.evolution.status = done, output = evolution-log 路径
 
 TeamDelete("sprint-{N}-team")
 ```

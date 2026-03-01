@@ -2,6 +2,7 @@
 
 # 框架运行时数据（由使用方项目产生，不属于框架本身）
 _bmad/_memory/evolution-log-*.md
+_bmad-output/sprint-*/checkpoint.yaml
 
 # 操作系统
 .DS_Store
